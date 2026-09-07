@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Mi Peso — Seguimiento semanal</title>
+<style>
+  :root{
+    --bg: #EEF1EC;
+    --surface: #FFFFFF;
+    --ink: #1F2E2C;
+    --ink-soft: #5B6B67;
+    --line: #D7DED9;
+    --accent: #3C6E64;
+    --accent-soft: #E4EDE9;
+    --warm: #D98A3D;
+    --warm-soft: #F6E6D2;
+    --danger: #B5541F;
+    --danger-soft: #F5E2D8;
+    --radius: 14px;
+    --serif: Iowan Old Style, "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  body{ padding:18px 14px 60px; }
+  .wrap{ max-width:480px; margin:0 auto; }
+
+  header.app-head{ text-align:center; padding:10px 4px 22px; }
+  header.app-head .eyebrow{ font-family:var(--mono); font-size:0.7rem; letter-spacing:.05em; color:var(--accent); margin-bottom:6px; }
+  header.app-head h1{ font-family:var(--serif); font-weight:400; font-size:1.6rem; margin:0 0 6px; }
+  header.app-head p{ color:var(--ink-soft); font-size:0.85rem; margin:0; line-height:1.5; }
+
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:14px; box-shadow:0 8px 24px rgba(31,46,44,0.05); }
+
+  /* setup form */
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:0.8rem; color:var(--ink-soft); margin-bottom:6px; }
+  .field input{ width:100%; border:1px solid var(--line); border-radius:9px; padding:11px 12px; font-size:0.95rem; font-family:var(--sans); }
+  .field-hint{ font-size:0.7rem; color:var(--ink-soft); margin-top:5px; }
+
+  /* summary */
+  .summary-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; text-align:center; margin-bottom:6px; }
+  .stat .big{ font-family:var(--serif); font-size:1.7rem; color:var(--accent); margin:2px 0; }
+  .stat .label{ font-size:0.68rem; color:var(--ink-soft); }
+  .stat .big.neg{ color:var(--accent); }
+  .stat .big.pos{ color:var(--danger); }
+  .interp{ margin-top:14px; font-size:0.85rem; font-weight:600; padding:10px 12px; border-radius:9px; text-align:center; }
+  .interp.ok{ background:var(--accent-soft); color:var(--accent); }
+  .interp.warn{ background:var(--danger-soft); color:var(--danger); }
+  .interp.pending{ background:#F4F6F4; color:var(--ink-soft); }
+
+  .safety-banner{ display:none; background:var(--danger); color:#fff; padding:12px 14px; border-radius:12px; font-size:0.85rem; margin-bottom:14px; line-height:1.5; }
+  .safety-banner.show{ display:block; }
+  .safety-banner b{ display:block; margin-bottom:4px; }
+
+  /* chart */
+  .chart-wrap{ margin-top:6px; }
+  svg.chart{ width:100%; height:140px; display:block; }
+  .chart-empty{ font-size:0.8rem; color:var(--ink-soft); text-align:center; padding:30px 10px; }
+
+  /* accordion guide */
+  details.guide{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; }
+  details.guide summary{ padding:14px 16px; font-size:0.9rem; font-weight:600; cursor:pointer; color:var(--accent); list-style:none; display:flex; justify-content:space-between; align-items:center; }
+  details.guide summary::-webkit-details-marker{ display:none; }
+  details.guide summary::after{ content:'＋'; font-weight:400; color:var(--ink-soft); }
+  details.guide[open] summary::after{ content:'－'; }
+  .guide-body{ padding:0 16px 16px; font-size:0.83rem; color:var(--ink-soft); line-height:1.6; }
+  .guide-body ol{ margin:8px 0; padding-left:20px; }
+  .guide-body li{ margin-bottom:6px; }
+  .guide-source{ margin-top:10px; font-size:0.72rem; font-style:italic; border-top:1px dashed var(--line); padding-top:8px; }
+
+  /* entries */
+  h2.section-title{ font-family:var(--serif); font-weight:400; font-size:1.1rem; margin:22px 4px 10px; }
+  .add-entry{ display:flex; gap:8px; align-items:flex-end; margin-bottom:16px; }
+  .add-entry .field{ margin-bottom:0; flex:1; }
+  .add-entry button{ flex-shrink:0; height:42px; }
+
+  .entry-row{ display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-top:1px solid #F0F2F0; font-size:0.85rem; }
+  .entry-row:first-child{ border-top:none; }
+  .entry-row .e-date{ color:var(--ink-soft); font-family:var(--mono); font-size:0.72rem; }
+  .entry-row .e-weight{ font-weight:600; }
+  .entry-row .e-del{ background:none; border:none; color:var(--danger); font-size:0.75rem; cursor:pointer; padding:4px 6px; }
+
+  /* buttons */
+  button.btn{ border:none; border-radius:999px; padding:12px; font-size:0.88rem; font-weight:600; font-family:var(--sans); cursor:pointer; }
+  button.btn.primary{ background:var(--accent); color:#fff; }
+  button.btn.secondary{ background:var(--surface); color:var(--ink); border:1px solid var(--line); width:100%; }
+  button.btn.ghost{ background:transparent; color:var(--danger); border:1px solid var(--danger-soft); width:100%; }
+  button.btn.small{ padding:10px 16px; font-size:0.8rem; }
+  .actions{ display:flex; flex-direction:column; gap:10px; margin-top:20px; }
+
+  footer.disclaimer{ margin-top:26px; font-size:0.72rem; color:var(--ink-soft); text-align:center; line-height:1.6; padding:0 10px; }
+
+  @media print{
+    body{ padding:0; background:#fff; }
+    details.guide, .actions, .safety-banner, .add-entry, .e-del{ display:none !important; }
+    .card{ box-shadow:none; border:none; border-bottom:1px solid #ddd; border-radius:0; }
+    header.app-head .eyebrow{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app-head">
+    <div class="eyebrow">SEGUIMIENTO SEMANAL DE PESO</div>
+    <h1>Mi Peso</h1>
+    <p>Pésate una vez a la semana, siempre en las mismas condiciones, y sigue la tendencia — no las variaciones de un día a otro.</p>
+  </header>
+
+  <div class="safety-banner" id="safetyBanner"></div>
+
+  <!-- SETUP (se oculta tras la primera configuración) -->
+  <div class="card" id="setupCard">
+    <div class="field">
+      <label for="inpHeight">Altura (cm)</label>
+      <input type="number" id="inpHeight" inputmode="numeric" min="120" max="230" placeholder="Ej. 168">
+    </div>
+    <div class="field">
+      <label for="inpStart">Peso inicial (kg)</label>
+      <input type="number" id="inpStart" inputmode="decimal" min="30" max="300" step="0.1" placeholder="Ej. 92.4">
+      <div class="field-hint">Se usará como primer registro de tu seguimiento.</div>
+    </div>
+    <div class="field">
+      <label for="inpGoal">Peso objetivo (kg) — opcional</label>
+      <input type="number" id="inpGoal" inputmode="decimal" min="30" max="300" step="0.1" placeholder="Ej. 80">
+    </div>
+    <button class="btn primary" id="setupBtn" style="width:100%;">Empezar mi seguimiento</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none;">
+
+    <div class="card">
+      <div class="summary-grid">
+        <div class="stat">
+          <div class="label">PESO ACTUAL</div>
+          <div class="big" id="statCurrent">--</div>
+          <div class="label">kg</div>
+        </div>
+        <div class="stat">
+          <div class="label">CAMBIO TOTAL</div>
+          <div class="big" id="statChange">--</div>
+          <div class="label">kg</div>
+        </div>
+        <div class="stat">
+          <div class="label">RITMO SEMANAL</div>
+          <div class="big" id="statPace">--</div>
+          <div class="label">kg/semana</div>
+        </div>
+        <div class="stat">
+          <div class="label">IMC ACTUAL</div>
+          <div class="big" id="statImc">--</div>
+          <div class="label" id="statImcCat">--</div>
+        </div>
+      </div>
+      <div class="interp pending" id="interpBox">Añade al menos 2 registros para ver tu tendencia</div>
+    </div>
+
+    <div class="card chart-wrap">
+      <div id="chartContainer"><div class="chart-empty">Tu gráfico de evolución aparecerá aquí</div></div>
+    </div>
+
+    <details class="guide">
+      <summary>Cómo pesarte bien</summary>
+      <div class="guide-body">
+        <ol>
+          <li>Siempre a la misma hora, idealmente por la mañana en ayunas y tras ir al baño.</li>
+          <li>Con ropa similar cada vez (o sin ropa), sobre la misma báscula.</li>
+          <li>Una vez por semana es suficiente — el peso varía a diario por agua, digestión, etc.</li>
+          <li>Fíjate en la tendencia de varias semanas, no en un único registro.</li>
+        </ol>
+        <div class="guide-source">Ritmo de pérdida de peso saludable recomendado: 0,5–1 kg/semana (Guías Dietéticas SEEDO / Guía GIRO 2024, Sociedad Española para el Estudio de la Obesidad). Esta app es una herramienta de apoyo, no sustituye la valoración de tu médico.</div>
+      </div>
+    </details>
+
+    <h2 class="section-title">Añadir registro</h2>
+    <div class="card">
+      <div class="add-entry">
+        <div class="field">
+          <label for="inpDate">Fecha</label>
+          <input type="date" id="inpDate">
+        </div>
+        <div class="field">
+          <label for="inpWeight">Peso (kg)</label>
+          <input type="number" id="inpWeight" inputmode="decimal" step="0.1" min="30" max="300" placeholder="Ej. 91.8">
+        </div>
+        <button class="btn primary small" id="addEntryBtn">Añadir</button>
+      </div>
+      <div id="entriesList"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="shareBtn">Compartir resumen con mi médico</button>
+      <button class="btn secondary" id="printBtn">Imprimir / guardar como PDF</button>
+      <button class="btn ghost" id="resetBtn">Borrar todo y empezar de nuevo</button>
+    </div>
+  </div>
+
+  <footer class="disclaimer">
+    Herramienta de apoyo para el seguimiento de peso en casa. No sustituye el diagnóstico ni el criterio de tu médico. Tus datos se guardan solo en este dispositivo.
+  </footer>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'mi_peso_v1';
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return null;
+}
+function saveData(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+
+let state = loadData();
+
+const setupCard = document.getElementById('setupCard');
+const dashboard = document.getElementById('dashboard');
+
+function initSetupView(){
+  setupCard.style.display = 'block';
+  dashboard.style.display = 'none';
+}
+function initDashboardView(){
+  setupCard.style.display = 'none';
+  dashboard.style.display = 'block';
+  document.getElementById('inpDate').valueAsDate = new Date();
+  render();
+}
+
+document.getElementById('setupBtn').addEventListener('click', ()=>{
+  const height = parseFloat(document.getElementById('inpHeight').value);
+  const start = parseFloat(document.getElementById('inpStart').value);
+  const goal = parseFloat(document.getElementById('inpGoal').value) || null;
+  if(!height || !start){ alert('Introduce al menos altura y peso inicial.'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  state = { height, goal, entries:[ { date: today, weight: start } ] };
+  saveData();
+  initDashboardView();
+});
+
+document.getElementById('addEntryBtn').addEventListener('click', ()=>{
+  const date = document.getElementById('inpDate').value;
+  const weight = parseFloat(document.getElementById('inpWeight').value);
+  if(!date || !weight){ alert('Introduce fecha y peso.'); return; }
+  state.entries.push({ date, weight });
+  state.entries.sort((a,b)=> a.date.localeCompare(b.date));
+  saveData();
+  document.getElementById('inpWeight').value = '';
+  render();
+});
+
+function deleteEntry(idx){
+  state.entries.splice(idx,1);
+  saveData();
+  render();
+}
+
+function imcCategory(imc){
+  if(imc < 18.5) return { label:'Bajo peso', cls:'warn' };
+  if(imc < 25) return { label:'Normopeso', cls:'ok' };
+  if(imc < 30) return { label:'Sobrepeso', cls:'ok' };
+  if(imc < 35) return { label:'Obesidad I', cls:'warn' };
+  if(imc < 40) return { label:'Obesidad II', cls:'warn' };
+  return { label:'Obesidad III', cls:'warn' };
+}
+
+function computePace(){
+  const entries = state.entries;
+  if(entries.length < 2) return null;
+  const first = entries[0];
+  const last = entries[entries.length-1];
+  const days = (new Date(last.date) - new Date(first.date)) / 86400000;
+  const weeks = days / 7;
+  if(weeks <= 0) return null;
+  return (last.weight - first.weight) / weeks;
+}
+
+function renderChart(){
+  const container = document.getElementById('chartContainer');
+  const entries = state.entries;
+  if(entries.length < 2){
+    container.innerHTML = '<div class="chart-empty">Añade al menos 2 registros para ver el gráfico</div>';
+    return;
+  }
+  const w = 400, h = 140, pad = 24;
+  const weights = entries.map(e=>e.weight);
+  const minW = Math.min(...weights) - 0.5;
+  const maxW = Math.max(...weights) + 0.5;
+  const range = (maxW - minW) || 1;
+  const stepX = (w - pad*2) / (entries.length - 1);
+
+  const points = entries.map((e,i)=>{
+    const x = pad + i*stepX;
+    const y = pad + (h - pad*2) * (1 - (e.weight - minW)/range);
+    return [x,y];
+  });
+  const pathD = points.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const dots = points.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="${accentColor}"></circle>`).join('');
+
+  container.innerHTML = `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path d="${pathD}" fill="none" stroke="${accentColor}" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+    ${dots}
+  </svg>`;
+}
+
+function renderEntries(){
+  const list = document.getElementById('entriesList');
+  list.innerHTML = '';
+  const entries = state.entries.slice().reverse();
+  entries.forEach((e)=>{
+    const realIdx = state.entries.indexOf(e);
+    const row = document.createElement('div');
+    row.className = 'entry-row';
+    row.innerHTML = `<span class="e-date">${e.date}</span><span class="e-weight">${e.weight} kg</span><button class="e-del" data-idx="${realIdx}">Eliminar</button>`;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.e-del').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteEntry(parseInt(btn.dataset.idx)));
+  });
+}
+
+function render(){
+  const entries = state.entries;
+  const current = entries[entries.length-1].weight;
+  const start = entries[0].weight;
+  const change = current - start;
+  const pace = computePace();
+  const imc = current / Math.pow(state.height/100, 2);
+  const imcCat = imcCategory(imc);
+
+  document.getElementById('statCurrent').textContent = current.toFixed(1);
+  document.getElementById('statChange').textContent = (change>=0?'+':'') + change.toFixed(1);
+  document.getElementById('statChange').className = 'big ' + (change<0 ? 'neg' : (change>0 ? 'pos' : ''));
+  document.getElementById('statPace').textContent = pace===null ? '--' : (pace>=0?'+':'') + pace.toFixed(2);
+  document.getElementById('statImc').textContent = imc.toFixed(1);
+  document.getElementById('statImcCat').textContent = imcCat.label;
+
+  const interpBox = document.getElementById('interpBox');
+  const safetyBanner = document.getElementById('safetyBanner');
+  safetyBanner.classList.remove('show');
+
+  if(pace === null){
+    interpBox.className = 'interp pending';
+    interpBox.textContent = 'Añade al menos 2 registros para ver tu tendencia';
+  } else if(pace < 0){
+    const paceAbs = Math.abs(pace);
+    if(paceAbs > 1.2){
+      interpBox.className = 'interp warn';
+      interpBox.textContent = 'Estás perdiendo peso más rápido de lo recomendado (0,5–1 kg/semana) — coméntalo con tu médico';
+      safetyBanner.classList.add('show');
+      safetyBanner.innerHTML = '<b>⚠ Ritmo de pérdida elevado</b>Una pérdida sostenida superior a 1-1,2 kg/semana conviene revisarla con tu médico, sobre todo si no es intencionada.';
+    } else if(paceAbs < 0.3){
+      interpBox.className = 'interp pending';
+      interpBox.textContent = 'Pérdida más lenta de lo habitual — sigue registrando para confirmar la tendencia';
+    } else {
+      interpBox.className = 'interp ok';
+      interpBox.textContent = 'Ritmo de pérdida dentro del rango saludable (0,5–1 kg/semana)';
+    }
+  } else if(pace > 0.3){
+    interpBox.className = 'interp warn';
+    interpBox.textContent = 'Tendencia al alza — coméntalo en tu próxima consulta si no era el objetivo';
+  } else {
+    interpBox.className = 'interp ok';
+    interpBox.textContent = 'Peso estable';
+  }
+
+  if(imcCat.label === 'Bajo peso'){
+    safetyBanner.classList.add('show');
+    safetyBanner.innerHTML = '<b>⚠ IMC por debajo de 18,5</b>Coméntalo con tu médico en tu próxima visita.';
+  }
+
+  renderChart();
+  renderEntries();
+}
+
+function buildSummaryText(){
+  const entries = state.entries;
+  const current = entries[entries.length-1].weight;
+  const start = entries[0].weight;
+  const change = current - start;
+  const pace = computePace();
+  const imc = current / Math.pow(state.height/100, 2);
+  let lines = ['Resumen de seguimiento de peso', ''];
+  lines.push(`Peso inicial (${entries[0].date}): ${start} kg`);
+  lines.push(`Peso actual (${entries[entries.length-1].date}): ${current} kg`);
+  lines.push(`Cambio total: ${(change>=0?'+':'')}${change.toFixed(1)} kg`);
+  if(pace!==null) lines.push(`Ritmo: ${(pace>=0?'+':'')}${pace.toFixed(2)} kg/semana`);
+  lines.push(`IMC actual: ${imc.toFixed(1)} (${imcCategory(imc).label})`);
+  lines.push('', 'Historial:');
+  entries.forEach(e=> lines.push(`${e.date}: ${e.weight} kg`));
+  return lines.join('\n');
+}
+
+document.getElementById('shareBtn').addEventListener('click', async ()=>{
+  const text = buildSummaryText();
+  if(navigator.share){
+    try{ await navigator.share({ title:'Resumen de peso', text }); return; }catch(e){}
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('Resumen copiado. Puedes pegarlo en un mensaje o email para tu médico.');
+  }catch(e){
+    alert(text);
+  }
+});
+
+document.getElementById('printBtn').addEventListener('click', ()=>{ window.print(); });
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if(confirm('¿Borrar todos los registros y empezar de nuevo?')){
+    state = null;
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    document.getElementById('inpHeight').value = '';
+    document.getElementById('inpStart').value = '';
+    document.getElementById('inpGoal').value = '';
+    initSetupView();
+  }
+});
+
+if(state && state.entries && state.entries.length){
+  initDashboardView();
+} else {
+  initSetupView();
+}
+</script>
+</body>
+</html>
